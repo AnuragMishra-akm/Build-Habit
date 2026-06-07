@@ -11,9 +11,23 @@ import kotlinx.coroutines.launch
 
 data class CreateHabitUiState(
     val name: String = "",
+    val isDropdownExpanded: Boolean = false,
     val reminderTime: String = "09:00 PM",
-    val selectedColor: String = "#2563EB", // Midnight Blue Primary
-    val isSaved: Boolean = false
+    val selectedColor: String = "#2563EB",
+    val isSaved: Boolean = false,
+    val insertedId: Long? = null,
+    val errorMessage: String? = null
+)
+
+val defaultHabits = listOf(
+    "Exercise",
+    "Read Books",
+    "Meditation",
+    "Drink Water",
+    "Sleep Early",
+    "Morning Run",
+    "Deep Work",
+    "Journaling"
 )
 
 class CreateHabitViewModel(
@@ -24,7 +38,11 @@ class CreateHabitViewModel(
     val uiState: StateFlow<CreateHabitUiState> = _uiState.asStateFlow()
 
     fun onNameChange(newName: String) {
-        _uiState.value = _uiState.value.copy(name = newName)
+        _uiState.value = _uiState.value.copy(name = newName, errorMessage = null)
+    }
+
+    fun onDropdownToggle(expanded: Boolean) {
+        _uiState.value = _uiState.value.copy(isDropdownExpanded = expanded)
     }
 
     fun onReminderTimeChange(newTime: String) {
@@ -37,17 +55,20 @@ class CreateHabitViewModel(
 
     fun saveHabit() {
         val currentState = _uiState.value
-        if (currentState.name.isBlank()) return
+        if (currentState.name.isBlank()) {
+            _uiState.value = _uiState.value.copy(errorMessage = "Please enter a habit name")
+            return
+        }
 
         viewModelScope.launch {
-            repository.insertHabit(
+            val id = repository.insertHabit(
                 Habit(
                     name = currentState.name,
                     reminderTime = currentState.reminderTime,
                     colorHex = currentState.selectedColor
                 )
             )
-            _uiState.value = _uiState.value.copy(isSaved = true)
+            _uiState.value = _uiState.value.copy(isSaved = true, insertedId = id)
         }
     }
 }

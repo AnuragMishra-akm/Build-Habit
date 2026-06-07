@@ -47,14 +47,14 @@ class HabitRepositoryImpl(
     override fun getAllCompletionsFlow(): Flow<List<HabitCompletion>> = 
         habitDao.getAllCompletionsFlow()
 
+    private val zoneId = java.time.ZoneId.of("Asia/Kolkata")
+
     private suspend fun updateHabitStreak(habitId: Long) {
         val habit = habitDao.getHabitById(habitId) ?: return
         val completions = habitDao.getCompletionsForHabit(habitId)
             .map { it.completedDate }
             .toSet()
         
-        // Simple streak calculation (can be improved)
-        // For a real app, this should probably be more robust
         val streak = calculateStreak(completions)
         val bestStreak = maxOf(habit.bestStreak, streak)
         
@@ -64,7 +64,7 @@ class HabitRepositoryImpl(
     private fun calculateStreak(completions: Set<String>): Int {
         if (completions.isEmpty()) return 0
         
-        val today = java.time.LocalDate.now()
+        val today = java.time.LocalDate.now(zoneId)
         var currentStreak = 0
         var checkDate = today
         

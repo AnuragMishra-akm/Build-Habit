@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -29,13 +30,7 @@ fun HomeScreen(
     onHabitClick: (Long) -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
-
-    // Comprehensive Mock Data
-    val mockHabits = listOf(
-        MockHabit(1, "Exercise", "45 mins · Today", Icons.Default.FitnessCenter, Color(0xFF2563EB), 24, true),
-        MockHabit(2, "Reading", "20 pages · Today", Icons.Default.MenuBook, Color(0xFF10B981), 12, false),
-        MockHabit(3, "Meditation", "10 mins · Evening", Icons.Default.SelfImprovement, Color(0xFF8B5CF6), 48, false)
-    )
+    val today = java.time.LocalDate.now(java.time.ZoneId.of("Asia/Kolkata")).toString()
 
     Column(
         modifier = Modifier.fillMaxSize()
@@ -49,7 +44,7 @@ fun HomeScreen(
         ) {
             item {
                 Column {
-                    Spacer(modifier = Modifier.height(16.dp)) // Restored small padding
+                    Spacer(modifier = Modifier.height(16.dp))
                     Text(
                         text = "Hello, Anurag 👋",
                         style = MaterialTheme.typography.bodyLarge,
@@ -61,8 +56,8 @@ fun HomeScreen(
                     )
                     Spacer(modifier = Modifier.height(24.dp))
                     ProgressCard(
-                        streak = 24,
-                        completionRate = 0.85f
+                        streak = uiState.currentStreak,
+                        completionRate = uiState.completionRate
                     )
                 }
             }
@@ -83,7 +78,7 @@ fun HomeScreen(
                 }
             }
 
-            if (mockHabits.isEmpty()) {
+            if (uiState.habits.isEmpty()) {
                 item {
                     Box(
                         modifier = Modifier
@@ -99,15 +94,16 @@ fun HomeScreen(
                     }
                 }
             } else {
-                items(mockHabits) { habit ->
+                items(uiState.habits) { habit ->
+                    val isCompleted = uiState.completions.any { it.habitId == habit.id && it.completedDate == today }
                     HabitCard(
                         name = habit.name,
-                        stats = habit.stats,
-                        isCompletedToday = habit.isCompleted,
-                        onToggle = { /* Mock */ },
+                        stats = "${habit.currentStreak} Day Streak",
+                        isCompletedToday = isCompleted,
+                        onToggle = { viewModel.toggleCompletion(habit.id) },
                         onClick = { onHabitClick(habit.id) },
-                        icon = habit.icon,
-                        iconBackgroundColor = habit.color
+                        icon = getIconForHabit(habit.name),
+                        iconBackgroundColor = Color(android.graphics.Color.parseColor(habit.colorHex))
                     )
                 }
             }
@@ -124,20 +120,33 @@ fun HomeScreen(
             tonalElevation = 2.dp
         ) {
             ConsistencyHeatmap(
+                completions = uiState.completions.map { java.time.LocalDate.parse(it.completedDate) },
+                totalHabitsPerDay = { date ->
+                    // For the monthly tracker, we assume the current habit count applies to past days 
+                    // unless we were to implement a much more complex historical snapshot system.
+                    uiState.totalHabits 
+                },
+                completionsPerDay = { date ->
+                    uiState.completions.count { it.completedDate == date.toString() }
+                },
                 modifier = Modifier
                     .padding(20.dp)
-                    .padding(bottom = 8.dp) // Restored minimal padding
+                    .padding(bottom = 8.dp)
             )
         }
     }
 }
 
-data class MockHabit(
-    val id: Long,
-    val name: String,
-    val stats: String,
-    val icon: ImageVector,
-    val color: Color,
-    val streak: Int,
-    val isCompleted: Boolean
-)
+fun getIconForHabit(name: String): ImageVector {
+    return when (name.lowercase()) {
+        "exercise" -> Icons.Default.FitnessCenter
+        "reading" -> Icons.AutoMirrored.Filled.MenuBook
+        "meditation" -> Icons.Default.SelfImprovement
+        "drink water" -> Icons.Default.WaterDrop
+        "sleep early" -> Icons.Default.Bedtime
+        "morning run" -> Icons.AutoMirrored.Filled.DirectionsRun
+        "deep work" -> Icons.Default.Computer
+        "journaling" -> Icons.Default.EditNote
+        else -> Icons.Default.AutoAwesome
+    }
+}

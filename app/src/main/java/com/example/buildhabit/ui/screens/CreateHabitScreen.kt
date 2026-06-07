@@ -9,29 +9,34 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.PlaylistAddCheck
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.buildhabit.ui.theme.*
 import com.example.buildhabit.ui.viewmodel.CreateHabitViewModel
+import com.example.buildhabit.util.NotificationHelper
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreateHabitScreen(
     viewModel: CreateHabitViewModel,
     onHabitCreated: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
 
     LaunchedEffect(uiState.isSaved) {
-        if (uiState.isSaved) {
+        if (uiState.isSaved && uiState.insertedId != null) {
+            NotificationHelper.scheduleReminder(
+                context, uiState.insertedId!!, uiState.name, uiState.reminderTime
+            )
             onHabitCreated()
         }
     }
@@ -62,35 +67,98 @@ fun CreateHabitScreen(
                 modifier = Modifier.padding(24.dp),
                 verticalArrangement = Arrangement.spacedBy(20.dp)
             ) {
-                // Habit Name
+                // Habit Name with Dropdown
                 Column {
                     Text("Habit Name", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(modifier = Modifier.height(8.dp))
-                    OutlinedTextField(
-                        value = uiState.name,
-                        onValueChange = viewModel::onNameChange,
-                        placeholder = { Text("e.g., Read Books") },
-                        modifier = Modifier.fillMaxWidth(),
-                        trailingIcon = { Icon(Icons.Default.PlaylistAddCheck, contentDescription = null) },
-                        shape = RoundedCornerShape(16.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            unfocusedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f),
-                            focusedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f),
-                            unfocusedBorderColor = Color.Transparent,
-                            focusedBorderColor = MaterialTheme.colorScheme.primary
+                    Box {
+                        OutlinedTextField(
+                            value = uiState.name,
+                            onValueChange = viewModel::onNameChange,
+                            placeholder = { Text("e.g., Read Books") },
+                            modifier = Modifier.fillMaxWidth(),
+                            trailingIcon = {
+                                IconButton(onClick = { viewModel.onDropdownToggle(true) }) {
+                                    Icon(Icons.Default.ArrowDropDown, contentDescription = "Select Default")
+                                }
+                            },
+                            isError = uiState.errorMessage != null,
+                            shape = RoundedCornerShape(16.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                unfocusedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f),
+                                focusedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f),
+                                unfocusedBorderColor = Color.Transparent,
+                                focusedBorderColor = MaterialTheme.colorScheme.primary
+                            )
                         )
+                        DropdownMenu(
+                            expanded = uiState.isDropdownExpanded,
+                            onDismissRequest = { viewModel.onDropdownToggle(false) },
+                            modifier = Modifier.fillMaxWidth(0.8f)
+                        ) {
+                            com.example.buildhabit.ui.viewmodel.defaultHabits.forEach { habitName ->
+                                DropdownMenuItem(
+                                    text = { Text(habitName) },
+                                    onClick = {
+                                        viewModel.onNameChange(habitName)
+                                        viewModel.onDropdownToggle(false)
+                                    }
+                                )
+                            }
+                        }
+                    }
+                    if (uiState.errorMessage != null) {
+                        Text(
+                            text = uiState.errorMessage!!,
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.labelSmall,
+                            modifier = Modifier.padding(start = 8.dp, top = 4.dp)
+                        )
+                    }
+                }
+
+                // Daily Reminder with TimePicker
+                var showTimePicker by remember { mutableStateOf(false) }
+                if (showTimePicker) {
+                    val timePickerState = rememberTimePickerState()
+                    AlertDialog(
+                        onDismissRequest = { showTimePicker = false },
+                        confirmButton = {
+                            TextButton(onClick = {
+                                val calendar = java.util.Calendar.getInstance()
+                                calendar.set(java.util.Calendar.HOUR_OF_DAY, timePickerState.hour)
+                                calendar.set(java.util.Calendar.MINUTE, timePickerState.minute)
+                                val timeFormat = java.text.SimpleDateFormat("hh:mm a", java.util.Locale.US)
+                                viewModel.onReminderTimeChange(timeFormat.format(calendar.time))
+                                showTimePicker = false
+                            }) {
+                                Text("OK")
+                            }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { showTimePicker = false }) {
+                                Text("Cancel")
+                            }
+                        },
+                        text = {
+                            TimePicker(state = timePickerState)
+                        }
                     )
                 }
 
-                // Daily Reminder
                 Column {
                     Text("Daily Reminder", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(modifier = Modifier.height(8.dp))
                     OutlinedTextField(
                         value = uiState.reminderTime,
-                        onValueChange = viewModel::onReminderTimeChange,
+                        onValueChange = {},
+                        readOnly = true,
                         modifier = Modifier.fillMaxWidth(),
-                        trailingIcon = { Icon(Icons.Default.AccessTime, contentDescription = null) },
+                        trailingIcon = {
+                            IconButton(onClick = { showTimePicker = true }) {
+                                Icon(Icons.Default.AccessTime, contentDescription = null)
+                            }
+                        },
                         shape = RoundedCornerShape(16.dp),
                         colors = OutlinedTextFieldDefaults.colors(
                             unfocusedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f),

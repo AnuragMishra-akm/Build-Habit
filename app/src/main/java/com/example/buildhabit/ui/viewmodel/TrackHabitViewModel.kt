@@ -15,7 +15,8 @@ import java.time.LocalDate
 data class TrackHabitUiState(
     val habits: List<Habit> = emptyList(),
     val completedHabitIds: Set<Long> = emptySet(),
-    val searchQuery: String = ""
+    val searchQuery: String = "",
+    val completionPercentage: Int = 0
 )
 
 class TrackHabitViewModel(
@@ -40,7 +41,8 @@ class TrackHabitViewModel(
         TrackHabitUiState(
             habits = filteredHabits,
             completedHabitIds = completedToday,
-            searchQuery = query
+            searchQuery = query,
+            completionPercentage = if (habits.isNotEmpty()) (completedToday.size * 100) / habits.size else 0
         )
     }.stateIn(
         scope = viewModelScope,

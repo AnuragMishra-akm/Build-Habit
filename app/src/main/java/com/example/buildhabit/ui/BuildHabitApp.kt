@@ -8,8 +8,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -42,6 +41,8 @@ fun BuildHabitApp() {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
 
+    var showEditDialog by remember { mutableStateOf(false) }
+
     val showBottomBar = listOf(
         NavDestination.Home::class,
         NavDestination.TrackHabits::class
@@ -58,6 +59,8 @@ fun BuildHabitApp() {
                 currentDestination?.hasRoute(NavDestination.HabitDetail::class) == true -> "Habit Details"
                 else -> "Build Habit"
             }
+
+            val isDetailScreen = currentDestination?.hasRoute(NavDestination.HabitDetail::class) == true
 
             TopAppBar(
                 title = {
@@ -81,15 +84,17 @@ fun BuildHabitApp() {
                     }
                 },
                 actions = {
-                    IconButton(onClick = { /* TODO */ }) {
-                        Icon(Icons.Default.Settings, contentDescription = "Settings")
+                    if (isDetailScreen) {
+                        IconButton(onClick = { showEditDialog = true }) {
+                            Icon(Icons.Default.Settings, contentDescription = "Edit Habit")
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background,
                     scrolledContainerColor = MaterialTheme.colorScheme.background
                 ),
-                windowInsets = TopAppBarDefaults.windowInsets // Restored to respect status bars
+                windowInsets = TopAppBarDefaults.windowInsets
             )
         },
         bottomBar = {
@@ -98,7 +103,7 @@ fun BuildHabitApp() {
                     containerColor = MaterialTheme.colorScheme.surface,
                     contentColor = MaterialTheme.colorScheme.primary,
                     tonalElevation = 8.dp,
-                    windowInsets = BottomAppBarDefaults.windowInsets, // Restored to respect navigation bars
+                    windowInsets = BottomAppBarDefaults.windowInsets,
                     actions = {
                         val homeItem = NavDestination.bottomNavItems[0]
                         val trackItem = NavDestination.bottomNavItems[1]
@@ -123,18 +128,8 @@ fun BuildHabitApp() {
                             }
                         }
 
-                        // Center FAB
-                        Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                            FloatingActionButton(
-                                onClick = { navController.navigate(NavDestination.CreateHabit) },
-                                containerColor = MaterialTheme.colorScheme.primary,
-                                contentColor = MaterialTheme.colorScheme.onPrimary,
-                                shape = RoundedCornerShape(18.dp),
-                                elevation = FloatingActionButtonDefaults.elevation(0.dp) // Flat inside the bar
-                            ) {
-                                Icon(Icons.Default.Add, contentDescription = "Add Habit")
-                            }
-                        }
+                        // Center Space for FAB
+                        Spacer(modifier = Modifier.width(72.dp))
 
                         // Track Icon
                         val trackSelected = currentDestination?.hierarchy?.any { it.hasRoute(trackItem.destination::class) } == true
@@ -159,6 +154,21 @@ fun BuildHabitApp() {
                 )
             }
         },
+        floatingActionButton = {
+            if (showBottomBar) {
+                FloatingActionButton(
+                    onClick = { navController.navigate(NavDestination.CreateHabit) },
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                    shape = RoundedCornerShape(18.dp),
+                    elevation = FloatingActionButtonDefaults.elevation(8.dp),
+                    modifier = Modifier.offset(y = 52.dp)
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = "Add Habit")
+                }
+            }
+        },
+        floatingActionButtonPosition = FabPosition.Center
     ) { innerPadding ->
         NavHost(
             navController = navController,
@@ -201,7 +211,10 @@ fun BuildHabitApp() {
                 )
                 HabitDetailScreen(
                     viewModel = viewModel,
-                    onHabitDeleted = { navController.popBackStack() }
+                    onBack = { navController.popBackStack() },
+                    onHabitDeleted = { navController.popBackStack() },
+                    isEditMode = showEditDialog,
+                    onEditDismiss = { showEditDialog = false }
                 )
             }
         }

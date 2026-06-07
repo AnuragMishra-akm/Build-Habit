@@ -193,8 +193,16 @@ fun ProgressCard(
 @Composable
 fun ConsistencyHeatmap(
     title: String = "CONSISTENCY TRACKER",
+    completions: List<java.time.LocalDate> = emptyList(),
+    totalHabitsPerDay: (java.time.LocalDate) -> Int = { 0 },
+    completionsPerDay: (java.time.LocalDate) -> Int = { 0 },
     modifier: Modifier = Modifier
 ) {
+    val today = java.time.LocalDate.now(java.time.ZoneId.of("Asia/Kolkata"))
+    val firstDayOfMonth = today.withDayOfMonth(1)
+    
+    val padding = firstDayOfMonth.dayOfWeek.value - 1
+    
     Column(modifier = modifier.fillMaxWidth()) {
         Text(
             text = title,
@@ -204,27 +212,53 @@ fun ConsistencyHeatmap(
         )
         Spacer(modifier = Modifier.height(16.dp))
         
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            repeat(20) { i ->
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    repeat(3) { j ->
-                        val alpha = when {
-                            (i + j) % 7 == 0 -> 1f
-                            (i + j) % 5 == 0 -> 0.6f
-                            (i + j) % 3 == 0 -> 0.3f
-                            else -> 0.1f
-                        }
-                        Box(
-                            modifier = Modifier
-                                .size(14.dp)
-                                .background(
-                                    Color(0xFF2563EB).copy(alpha = alpha),
-                                    RoundedCornerShape(3.dp)
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            val totalCells = padding + today.lengthOfMonth()
+            val rows = (totalCells + 6) / 7
+            
+            repeat(rows) { rowIndex ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    repeat(7) { colIndex ->
+                        val dayIndex = rowIndex * 7 + colIndex - padding
+                        if (dayIndex in 0 until today.lengthOfMonth()) {
+                            val date = firstDayOfMonth.plusDays(dayIndex.toLong())
+                            val total = totalHabitsPerDay(date)
+                            val done = completionsPerDay(date)
+                            
+                            val opacity = if (total > 0) {
+                                (done.toFloat() / total).coerceIn(0.1f, 1f)
+                            } else {
+                                0.1f
+                            }
+                            
+                            val baseColor = if (done > 0) Color(0xFF22C55E) else Color(0xFF2563EB)
+                            val colorWithOpacity = if (total > 0 && done > 0) {
+                                baseColor.copy(alpha = opacity)
+                            } else {
+                                Color(0xFF2563EB).copy(alpha = 0.1f)
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .background(
+                                        colorWithOpacity,
+                                        RoundedCornerShape(8.dp)
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = (dayIndex + 1).toString(),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = if (opacity > 0.6f && done > 0) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
-                        )
+                            }
+                        } else {
+                            Spacer(modifier = Modifier.size(36.dp))
+                        }
                     }
                 }
             }
@@ -234,10 +268,22 @@ fun ConsistencyHeatmap(
         
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("LESS CONSISTANT", style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp), color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text("MORE CONSISTANT", style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp), color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(today.month.name, style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp), color = MaterialTheme.colorScheme.onSurfaceVariant)
+            
+            // Legend
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("Less", style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Box(modifier = Modifier.size(10.dp).background(Color(0xFF22C55E).copy(alpha = 0.2f), RoundedCornerShape(2.dp)))
+                Box(modifier = Modifier.size(10.dp).background(Color(0xFF22C55E).copy(alpha = 0.5f), RoundedCornerShape(2.dp)))
+                Box(modifier = Modifier.size(10.dp).background(Color(0xFF22C55E).copy(alpha = 0.8f), RoundedCornerShape(2.dp)))
+                Box(modifier = Modifier.size(10.dp).background(Color(0xFF22C55E), RoundedCornerShape(2.dp)))
+                Text("More", style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp), color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+
+            Text(today.year.toString(), style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp), color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
